@@ -8,6 +8,11 @@ import { eq } from "drizzle-orm";
 export const { handlers, signIn, signOut, auth } = NextAuth({
   session: { strategy: "jwt" },
   pages: { signIn: "/signin" },
+  callbacks: {
+    // Without this, the middleware attaches session info but never
+    // actually blocks a request — this is what makes it enforce login.
+    authorized: ({ auth }) => !!auth?.user,
+  },
   providers: [
     Credentials({
       credentials: {
