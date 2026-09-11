@@ -6,6 +6,7 @@ import {
   integer,
   date,
   boolean,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 // The two of you. No self-signup — accounts are seeded directly (see db:seed).
@@ -53,4 +54,50 @@ export const milestones = pgTable("milestones", {
   done: boolean("done").notNull().default(false),
   notes: text("notes"),
   sortOrder: integer("sort_order").notNull().default(0),
+});
+
+// A candidate area to live in. Schools and childcare options link to
+// these, and (in a later phase) so will real estate listings.
+export const neighborhoods = pgTable("neighborhoods", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  borough: text("borough"),
+  notes: text("notes"),
+});
+
+// A school under consideration. Linked to neighborhoods via a join
+// table since one school's zone often spans more than one neighborhood.
+export const schools = pgTable("schools", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  notes: text("notes"),
+  realEstateLink: text("real_estate_link"),
+});
+
+export const schoolNeighborhoods = pgTable(
+  "school_neighborhoods",
+  {
+    schoolId: integer("school_id")
+      .references(() => schools.id, { onDelete: "cascade" })
+      .notNull(),
+    neighborhoodId: integer("neighborhood_id")
+      .references(() => neighborhoods.id, { onDelete: "cascade" })
+      .notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.schoolId, t.neighborhoodId] }),
+  })
+);
+
+// A childcare option. Tied to a single neighborhood — simpler than
+// schools, since childcare zones don't overlap the way school zoning does.
+export const childcareOptions = pgTable("childcare_options", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  neighborhoodId: integer("neighborhood_id").references(
+    () => neighborhoods.id,
+    { onDelete: "set null" }
+  ),
+  notes: text("notes"),
+  link: text("link"),
 });

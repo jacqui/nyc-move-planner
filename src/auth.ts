@@ -4,15 +4,10 @@ import bcrypt from "bcryptjs";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { authConfig } from "@/auth.config";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  session: { strategy: "jwt" },
-  pages: { signIn: "/signin" },
-  callbacks: {
-    // Without this, the middleware attaches session info but never
-    // actually blocks a request — this is what makes it enforce login.
-    authorized: ({ auth }) => !!auth?.user,
-  },
+  ...authConfig,
   providers: [
     Credentials({
       credentials: {
