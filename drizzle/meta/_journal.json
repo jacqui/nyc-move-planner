@@ -15,6 +15,13 @@
       "when": 1789087909296,
       "tag": "0001_cooing_squadron_supreme",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789099160282,
+      "tag": "0002_real_drax",
+      "breakpoints": true
     }
   ]
 }

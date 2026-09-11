@@ -21,6 +21,7 @@ export default function RootLayout({
             <a href="/neighborhoods">Neighborhoods</a>
             <a href="/schools">Schools</a>
             <a href="/childcare">Childcare</a>
+            <a href="/listings">Listings</a>
           </nav>
         </header>
         <main className="px-6 py-8 max-w-3xl mx-auto">{children}</main>

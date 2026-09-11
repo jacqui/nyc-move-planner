@@ -101,3 +101,20 @@ export const childcareOptions = pgTable("childcare_options", {
   notes: text("notes"),
   link: text("link"),
 });
+
+// A real estate listing (for sale, for rent, or sold), optionally
+// pulled from a URL via the scraper and always hand-correctable.
+export const listings = pgTable("listings", {
+  id: serial("id").primaryKey(),
+  url: text("url"),
+  address: text("address").notNull(),
+  price: text("price"),
+  status: text("status").notNull(), // "for_sale" | "for_rent" | "sold"
+  imageUrl: text("image_url"),
+  neighborhoodId: integer("neighborhood_id").references(
+    () => neighborhoods.id,
+    { onDelete: "set null" }
+  ),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
