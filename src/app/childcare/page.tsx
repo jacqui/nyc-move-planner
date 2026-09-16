@@ -1,6 +1,8 @@
 import { db } from "@/db";
 import { childcareOptions, neighborhoods } from "@/db/schema";
+import { asc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { EditableChildcare } from "./EditableChildcare";
 
 export const dynamic = "force-dynamic";
 
@@ -22,9 +24,31 @@ async function createChildcare(formData: FormData) {
   revalidatePath("/childcare");
 }
 
+async function updateChildcare(id: number, formData: FormData) {
+  "use server";
+  const name = formData.get("name") as string;
+  const notes = formData.get("notes") as string;
+  const link = formData.get("link") as string;
+  const neighborhoodIdRaw = formData.get("neighborhoodId") as string;
+  const neighborhoodId = neighborhoodIdRaw ? Number(neighborhoodIdRaw) : null;
+
+  await db
+    .update(childcareOptions)
+    .set({ name, notes: notes || null, link: link || null, neighborhoodId })
+    .where(eq(childcareOptions.id, id));
+
+  revalidatePath("/childcare");
+}
+
+async function deleteChildcare(id: number) {
+  "use server";
+  await db.delete(childcareOptions).where(eq(childcareOptions.id, id));
+  revalidatePath("/childcare");
+}
+
 export default async function ChildcarePage() {
-  const allChildcare = await db.select().from(childcareOptions);
-  const allNeighborhoods = await db.select().from(neighborhoods);
+  const allChildcare = await db.select().from(childcareOptions).orderBy(asc(childcareOptions.name));
+  const allNeighborhoods = await db.select().from(neighborhoods).orderBy(asc(neighborhoods.name));
 
   return (
     <div className="flex flex-col gap-8">
@@ -34,25 +58,15 @@ export default async function ChildcarePage() {
           <p className="text-ink/70 mb-4">No childcare options yet — add your first one below.</p>
         )}
         <ul className="flex flex-col gap-2">
-          {allChildcare.map((c) => {
-            const neighborhoodName = allNeighborhoods.find(
-              (n) => n.id === c.neighborhoodId
-            )?.name;
-            return (
-              <li key={c.id} className="border border-line bg-white rounded px-4 py-3">
-                <span className="font-medium">{c.name}</span>
-                {neighborhoodName && (
-                  <span className="text-ink/60"> — {neighborhoodName}</span>
-                )}
-                {c.link && (
-                  <a href={c.link} className="text-route text-sm block">
-                    Website
-                  </a>
-                )}
-                {c.notes && <p className="text-ink/70 text-sm">{c.notes}</p>}
-              </li>
-            );
-          })}
+          {allChildcare.map((c) => (
+            <EditableChildcare
+              key={c.id}
+              childcare={c}
+              allNeighborhoods={allNeighborhoods}
+              updateChildcare={updateChildcare}
+              deleteChildcare={deleteChildcare}
+            />
+          ))}
         </ul>
       </div>
 

@@ -1,8 +1,9 @@
 import { db } from "@/db";
 import { listings, neighborhoods } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { NewListingForm } from "./NewListingForm";
+import { EditableListing } from "./EditableListing";
 
 export const dynamic = "force-dynamic";
 
@@ -36,12 +37,37 @@ async function createListing(formData: FormData) {
   revalidatePath("/listings");
 }
 
+async function updateListing(id: number, formData: FormData) {
+  "use server";
+  const url = (formData.get("url") as string) || null;
+  const address = formData.get("address") as string;
+  const price = (formData.get("price") as string) || null;
+  const imageUrl = (formData.get("imageUrl") as string) || null;
+  const status = formData.get("status") as string;
+  const notes = (formData.get("notes") as string) || null;
+  const neighborhoodIdRaw = formData.get("neighborhoodId") as string;
+  const neighborhoodId = neighborhoodIdRaw ? Number(neighborhoodIdRaw) : null;
+
+  await db
+    .update(listings)
+    .set({ url, address, price, imageUrl, status, notes, neighborhoodId })
+    .where(eq(listings.id, id));
+
+  revalidatePath("/listings");
+}
+
+async function deleteListing(id: number) {
+  "use server";
+  await db.delete(listings).where(eq(listings.id, id));
+  revalidatePath("/listings");
+}
+
 export default async function ListingsPage({
   searchParams,
 }: {
   searchParams: { status?: string; neighborhoodId?: string };
 }) {
-  const allNeighborhoods = await db.select().from(neighborhoods);
+  const allNeighborhoods = await db.select().from(neighborhoods).orderBy(asc(neighborhoods.name));
 
   const conditions = [];
   if (searchParams.status) {
@@ -56,7 +82,8 @@ export default async function ListingsPage({
   const filtered = await db
     .select()
     .from(listings)
-    .where(conditions.length ? and(...conditions) : undefined);
+    .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(asc(listings.address));
 
   function filterHref(status?: string, neighborhoodId?: string) {
     const params = new URLSearchParams();
@@ -125,44 +152,15 @@ export default async function ListingsPage({
           <p className="text-ink/70">No listings match — add one below.</p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {filtered.map((l) => {
-              const neighborhoodName = allNeighborhoods.find(
-                (n) => n.id === l.neighborhoodId
-              )?.name;
-              return (
-                <li
-                  key={l.id}
-                  className="border border-line bg-white rounded px-4 py-3 flex gap-3"
-                >
-                  {l.imageUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={l.imageUrl}
-                      alt=""
-                      className="w-20 h-20 object-cover rounded flex-shrink-0"
-                    />
-                  )}
-                  <div className="flex-1">
-                    <div className="flex justify-between gap-2">
-                      <span className="font-medium">{l.address}</span>
-                      <span className="text-sm text-ink/60">
-                        {STATUS_LABEL[l.status] ?? l.status}
-                      </span>
-                    </div>
-                    {l.price && <p className="text-ink/70">{l.price}</p>}
-                    {neighborhoodName && (
-                      <p className="text-ink/50 text-sm">{neighborhoodName}</p>
-                    )}
-                    {l.notes && <p className="text-ink/70 text-sm">{l.notes}</p>}
-                    {l.url && (
-                      <a href={l.url} className="text-route text-sm block">
-                        Original listing
-                      </a>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
+            {filtered.map((l) => (
+              <EditableListing
+                key={l.id}
+                listing={l}
+                allNeighborhoods={allNeighborhoods}
+                updateListing={updateListing}
+                deleteListing={deleteListing}
+              />
+            ))}
           </ul>
         )}
       </div>

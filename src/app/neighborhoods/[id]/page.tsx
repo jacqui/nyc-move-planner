@@ -5,7 +5,7 @@ import {
   schoolNeighborhoods,
   childcareOptions,
 } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
@@ -30,13 +30,14 @@ export default async function NeighborhoodDetailPage({
     .where(eq(schoolNeighborhoods.neighborhoodId, neighborhoodId));
   const schoolIds = links.map((l) => l.schoolId);
   const linkedSchools = schoolIds.length
-    ? await db.select().from(schools).where(inArray(schools.id, schoolIds))
+    ? await db.select().from(schools).where(inArray(schools.id, schoolIds)).orderBy(asc(schools.name))
     : [];
 
   const linkedChildcare = await db
     .select()
     .from(childcareOptions)
-    .where(eq(childcareOptions.neighborhoodId, neighborhoodId));
+    .where(eq(childcareOptions.neighborhoodId, neighborhoodId))
+    .orderBy(asc(childcareOptions.name));
 
   return (
     <div className="flex flex-col gap-8">

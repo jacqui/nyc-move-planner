@@ -4,6 +4,7 @@ Phase 1: scenarios + milestone timelines, with login for both of you.
 Phase 2: neighborhoods, schools (zoned across neighborhoods), and childcare.
 Phase 3: filterable real estate listings, with best-effort scraping from a
 pasted URL.
+Phase 3.5: edit and delete on neighborhoods, schools, childcare, and listings.
 
 ## What's here
 
