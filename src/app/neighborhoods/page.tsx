@@ -1,8 +1,8 @@
 import { db } from "@/db";
 import { neighborhoods, schools, childcareOptions, schoolNeighborhoods } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import Link from "next/link";
+import { asc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { EditableNeighborhood } from "./EditableNeighborhood";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +16,27 @@ async function createNeighborhood(formData: FormData) {
   revalidatePath("/neighborhoods");
 }
 
+async function updateNeighborhood(id: number, formData: FormData) {
+  "use server";
+  const name = formData.get("name") as string;
+  const borough = formData.get("borough") as string;
+  const notes = formData.get("notes") as string;
+
+  await db
+    .update(neighborhoods)
+    .set({ name, borough: borough || null, notes: notes || null })
+    .where(eq(neighborhoods.id, id));
+  revalidatePath("/neighborhoods");
+}
+
+async function deleteNeighborhood(id: number) {
+  "use server";
+  await db.delete(neighborhoods).where(eq(neighborhoods.id, id));
+  revalidatePath("/neighborhoods");
+}
+
 export default async function NeighborhoodsPage() {
-  const allNeighborhoods = await db.select().from(neighborhoods);
+  const allNeighborhoods = await db.select().from(neighborhoods).orderBy(asc(neighborhoods.name));
   const allSchoolLinks = await db.select().from(schoolNeighborhoods);
   const allSchools = await db.select().from(schools);
   const allChildcare = await db.select().from(childcareOptions);
@@ -40,19 +59,14 @@ export default async function NeighborhoodsPage() {
             ).length;
 
             return (
-              <li key={n.id}>
-                <Link
-                  href={`/neighborhoods/${n.id}`}
-                  className="block border border-line bg-white rounded px-4 py-3 hover:border-route"
-                >
-                  <span className="font-medium">{n.name}</span>
-                  {n.borough && <span className="text-ink/60"> — {n.borough}</span>}
-                  <span className="text-ink/50 text-sm block">
-                    {schoolCount} school{schoolCount === 1 ? "" : "s"} ·{" "}
-                    {childcareCount} childcare option{childcareCount === 1 ? "" : "s"}
-                  </span>
-                </Link>
-              </li>
+              <EditableNeighborhood
+                key={n.id}
+                neighborhood={n}
+                schoolCount={schoolCount}
+                childcareCount={childcareCount}
+                updateNeighborhood={updateNeighborhood}
+                deleteNeighborhood={deleteNeighborhood}
+              />
             );
           })}
         </ul>

@@ -4,8 +4,9 @@ import {
   neighborhoods,
   schoolNeighborhoods,
 } from "@/db/schema";
-import { inArray } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { EditableSchool } from "./EditableSchool";
 
 export const dynamic = "force-dynamic";
 
@@ -37,9 +38,40 @@ async function createSchool(formData: FormData) {
   revalidatePath("/schools");
 }
 
+async function updateSchool(id: number, formData: FormData) {
+  "use server";
+  const name = formData.get("name") as string;
+  const notes = formData.get("notes") as string;
+  const realEstateLink = formData.get("realEstateLink") as string;
+  const neighborhoodIds = formData.getAll("neighborhoodIds").map(Number);
+
+  await db
+    .update(schools)
+    .set({ name, notes: notes || null, realEstateLink: realEstateLink || null })
+    .where(eq(schools.id, id));
+
+  // Simplest correct approach: replace the whole link set rather than diff it.
+  await db.delete(schoolNeighborhoods).where(eq(schoolNeighborhoods.schoolId, id));
+  if (neighborhoodIds.length > 0) {
+    await db.insert(schoolNeighborhoods).values(
+      neighborhoodIds.map((neighborhoodId) => ({ schoolId: id, neighborhoodId }))
+    );
+  }
+
+  revalidatePath("/schools");
+  revalidatePath("/neighborhoods");
+}
+
+async function deleteSchool(id: number) {
+  "use server";
+  await db.delete(schools).where(eq(schools.id, id));
+  revalidatePath("/schools");
+  revalidatePath("/neighborhoods");
+}
+
 export default async function SchoolsPage() {
-  const allSchools = await db.select().from(schools);
-  const allNeighborhoods = await db.select().from(neighborhoods);
+  const allSchools = await db.select().from(schools).orderBy(asc(schools.name));
+  const allNeighborhoods = await db.select().from(neighborhoods).orderBy(asc(neighborhoods.name));
   const allLinks = await db.select().from(schoolNeighborhoods);
 
   return (
@@ -51,23 +83,18 @@ export default async function SchoolsPage() {
         )}
         <ul className="flex flex-col gap-2">
           {allSchools.map((s) => {
-            const linkedNames = allLinks
+            const linkedNeighborhoodIds = allLinks
               .filter((l) => l.schoolId === s.id)
-              .map((l) => allNeighborhoods.find((n) => n.id === l.neighborhoodId)?.name)
-              .filter(Boolean);
+              .map((l) => l.neighborhoodId);
             return (
-              <li key={s.id} className="border border-line bg-white rounded px-4 py-3">
-                <span className="font-medium">{s.name}</span>
-                {linkedNames.length > 0 && (
-                  <span className="text-ink/60"> — {linkedNames.join(", ")}</span>
-                )}
-                {s.realEstateLink && (
-                  <a href={s.realEstateLink} className="text-route text-sm block">
-                    Real estate search
-                  </a>
-                )}
-                {s.notes && <p className="text-ink/70 text-sm">{s.notes}</p>}
-              </li>
+              <EditableSchool
+                key={s.id}
+                school={s}
+                allNeighborhoods={allNeighborhoods}
+                linkedNeighborhoodIds={linkedNeighborhoodIds}
+                updateSchool={updateSchool}
+                deleteSchool={deleteSchool}
+              />
             );
           })}
         </ul>
